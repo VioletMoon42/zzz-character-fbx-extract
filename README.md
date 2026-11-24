@@ -32,7 +32,7 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 | Python 3.10 이상 | [python.org](https://www.python.org/downloads/) | 설치할 때 **"Add python.exe to PATH"**에 체크 |
 | AnimeStudioUltimate 1.8.1 | [GitHub 릴리스](https://github.com/LegionInstaller/AnimeStudioUltimate/releases) | 실제로 파일을 읽고 FBX를 만드는 도구 (MIT) |
 | .NET 10 런타임 | [Microsoft](https://dotnet.microsoft.com/download/dotnet/10.0) | **Windows x64 zip**을 받으면 설치 없이 압축만 풀면 됩니다 |
-| Blender (선택) | [blender.org](https://www.blender.org/download/) | 동작 확인·덤프 대조에만 필요 (4.x에서 확인) |
+| Blender (권장) | [blender.org](https://www.blender.org/download/) | 바로 여는 `.blend` 만들기, 애드온, 동작 확인, 덤프 대조 (5.2에서 확인) |
 | ZZ-Model-Importer-Assets (선택) | [ZZ-Model-Importer](https://github.com/leotorrez/ZZ-Model-Importer) 관련 프로젝트 | 팔레트 → 뼈 이름 대조에만 필요 |
 
 ## 쓰는 법
@@ -54,10 +54,12 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 결과는 `%USERPROFILE%\ZZZ_CharacterFBX\characters\<게임 속 이름>\`에 생깁니다.
 - `model\`: 모델만 든 FBX (수 MB)
 - `anim\`: 모델 + 몸 동작 전체 FBX (수백 MB)와 `.animator.json` (동작 연결·타이밍)
+- 각 폴더의 `.blend`: Blender가 있으면 같이 만듭니다. 바로 열어 쓰는 파일입니다(아래 "뽑은 결과 쓰는 법").
 
 ### 4. 확인 (선택)
 - **3. 뽑은 동작 확인**: 대표 동작 2~3개만 따로 뽑아 Blender에서 실제로 움직이는지 숫자로 보여 줍니다.
-- **4. ZZMI 덤프와 뼈 이름 대조**: 부위마다 `palette_to_bone.json`을 만들고 ✓/✗로 결과를 보여 줍니다.
+- **4. ZZMI 덤프와 뼈 이름 대조**: 부위마다 `palette_to_bone.json`을 만들고 ✓/✗로 결과를 보여 줍니다. 애드온이 모드 메시를 붙일 때 이 표를 씁니다.
+- **7. 이미 뽑은 결과로 Blender 파일 만들기**: `.blend`가 없는 결과에 만들어 줍니다.
 
 ## 명령으로 쓰기
 메뉴 대신 명령으로도 됩니다(PowerShell, 압축 푼 폴더에서).
@@ -67,24 +69,51 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 .\zzz-character-fbx-extract.bat check Astra
 .\zzz-character-fbx-extract.bat dump Pheony Pheonix
 .\zzz-character-fbx-extract.bat list
+.\zzz-character-fbx-extract.bat blend Astra
 ```
 - `--clips <정규식>`: 동작 일부만. 동작 이름(`..._Ani_` 다음)의 앞부분에 맞춥니다. 정확히 그 동작 하나만이면 끝에 `$`를 붙입니다.
 - `--with-facial`: 얼굴 동작도
 - `--model-only`: 모델만
 - `--code <게임 속 이름>`: 후보 고르기를 건너뛰고 바로
+- `--no-blend`: `.blend`를 만들지 않음
 
 작업 폴더를 바꾸려면 환경 변수 `ZX_ROOT`를 정합니다.
 
-## Blender에서 쓸 때
-- 가져오면 캐릭터가 1/100 크기입니다. ZZMI 덤프 좌표 → FBX는 x 반전 × 0.01입니다.
-- 동작은 60 fps입니다.
-- 동작 하나를 가져오면 `<뼈대 이름>|<동작>|Base Layer` 외에 `Root|`, `Key|`, `FX_Root|` 액션도 생깁니다. 뼈대에는 뼈대 이름으로 시작하는 액션만 쓰세요.
-- 동작이 많이 든 FBX는 열 때 오래 걸립니다. 시험할 때는 `--clips`로 몇 개만 뽑는 편이 빠릅니다.
+## 뽑은 결과 쓰는 법 (Blender)
+### 바로 열기
+Blender가 설정돼 있으면 뽑을 때 FBX 옆에 **`.blend`**도 만들어 둡니다. 더블클릭해서 열면 됩니다.
+- 실제 크기(키 약 1.5~1.7 m), 60 fps, 텍스처가 보이는 화면으로 맞춰 두었습니다.
+- 동작 전체가 타임라인 하나에 이어 붙어 있고, 동작마다 이름표(마커)가 있습니다. **Space**로 재생합니다.
+- 공격·회피는 앞으로 나가는 동작이라 캐릭터가 제자리를 벗어납니다. 정상입니다.
+- 예전에 뽑은 결과는 메뉴 **7번**으로 `.blend`를 만들 수 있습니다.
+- 몸 텍스처는 빠질 수 있습니다(AnimeStudio가 읽은 파일에 들어 있던 텍스처만 나옵니다). 모양과 동작을 보는 데는 지장이 없습니다.
+
+### 애드온: 동작 고르기, 내 모드 메시 붙이기
+설치: Blender → **Edit → Preferences → Add-ons** → 오른쪽 위 ▼ → **Install from Disk…** → 이 폴더의 `blender_addon\zzz_character_fbx_tools.py`. 3D 화면에서 **N**을 누르면 오른쪽에 **ZZZ FBX** 탭이 생깁니다.
+
+- **동작 고르기**: 탭에 나온 동작 이름을 누르면 그 동작으로 가서 그 구간만 반복 재생합니다.
+- **내 모드 메시로 클리핑 미리 보기**
+  1. 내 모드 작업 파일(XXMI Tools로 가져온 메시가 있는 .blend)을 엽니다.
+  2. **게임 캐릭터 불러오기** → 뽑은 결과의 `anim\….blend`를 고릅니다. 뼈대, 메시, 동작, 이름표가 들어옵니다.
+  3. 내 메시를 선택하고 **선택한 메시를 게임 뼈대에**를 누릅니다.
+  4. `게임 뼈대 시험` 컬렉션에 사본이 생기고 게임 동작대로 움직입니다. **원본 메시는 그대로**입니다.
+  - 위치·크기·좌우 반전은 게임 몸에 가장 잘 겹치는 쪽으로 자동으로 맞춥니다.
+  - 버텍스 그룹이 번호(`0`, `1`, `2`…)면 메뉴 4번이 만든 `palette_to_bone.json`으로 뼈 이름을 붙여 **모드 웨이트를 그대로** 씁니다. 표는 같은 캐릭터 폴더에서 메시 이름으로 찾습니다.
+  - 표가 없으면 게임 메시에서 가장 가까운 웨이트를 옮겨 옵니다.
+
+### FBX를 직접 쓸 때
+- Blender에서 FBX를 직접 가져올 때는 Scale을 **100**으로 하세요. 그대로면 키가 1.5 cm입니다.
+- 뼈대 이름으로 시작하는 액션만 그 뼈대의 동작입니다. `Root|`, `Key|`, `FX_Root|`로 시작하는 액션은 다른 오브젝트용입니다.
+- ZZMI 덤프 좌표 → FBX는 x 반전 × 0.01입니다.
+
+## 다른 게임
+젠레스 존 제로 전용입니다. 원신(7.0)으로 시험해 보니 AnimeStudio가 파일은 읽지만, 몸 메시가 `Body`·`Face` 같은 공통 이름으로 다른 파일에 흩어져 있어 이 도구의 찾기 방식으로는 뼈대만 나왔습니다. 붕괴: 스타레일은 시험하지 못했습니다.
 
 ## 문제가 생기면
 - **"먼저 setup을 실행해 주세요"**: 메뉴 1번을 실행합니다.
 - **후보가 하나도 안 나옴**: 영어 이름(인게임 영어판 이름)으로 다시 해 보세요.
 - **뽑기 실패**: `characters\<이름>\log_*.txt`를 보세요. 게임 업데이트 직후라면 메뉴 6번으로 지도를 다시 만듭니다.
+- **`.blend`가 안 생김**: 메뉴 1번에서 Blender를 찾았는지 봅니다. 실패했다면 `characters\<이름>\log_*_blend.txt`를 보세요.
 - **AnimeStudio를 새 버전으로 바꾼 뒤 안 됨**: 훅이 1.8.1의 내부 이름에 맞춰져 있습니다. 1.8.1을 쓰세요.
 
 ## 고치거나 기여할 때

@@ -64,6 +64,16 @@ description: 젠레스 존 제로(ZZZ) 캐릭터의 게임 뼈대·모델·몸 �
 - 동작 FBX에는 게임 rest 자세와 보조 본(Skn_*, 치마·머리 본 등)이 있다. 근사 뼈대로 하던 자세 시험을 실제 동작으로 대신할 수 있다.
 - 동작은 60 fps다. 연속 동작(콤보)은 `.animator.json`의 타이밍을 쓴다. AnimeStudioUltimate 문서 `docs/zzz-animator-controllers.md`에 설명이 있다.
 - 동작이 많이 든 FBX는 Blender로 열 때 오래 걸린다. 시험에는 `--clips`로 대표 동작 몇 개만 따로 뽑는 편이 빠르다.
+- **바로 쓰는 .blend**: Blender가 설정돼 있으면 `zx_extract.py`가 FBX마다 옆에 `.blend`를 만든다(`zx_make_blend_blender.py`, 끄려면 `--no-blend`). 예전 결과는 `zx.py blend <코드명>`.
+  - FBX를 Scale 100으로 가져와 실제 크기(키 1.5~1.7 m), 60 fps, 머티리얼 미리보기.
+  - 동작은 NLA로 타임라인 하나에 이어 붙이고(대기 동작 먼저, 사이 10프레임) 동작마다 마커를 단다. 뼈대·셰이프 키(`Key|`)·`Root|`·`FX_Root|`의 같은 동작을 같은 자리에 놓는다.
+  - 텍스처는 `//파일이름`으로 가리키고 같은 파일 중복 이미지는 하나로 합친다.
+  - 확인한 값: 피닉스 2동작(키 1.538 m, 마커 2), 아스트라 134동작(마커 133, 1.70 m, 2분 남짓, .blend 714 MB).
+- **애드온** `blender_addon\zzz_character_fbx_tools.py` (사이드바 "ZZZ FBX")
+  - 게임 캐릭터 불러오기: 결과 .blend의 장면을 붙여 넣고 마커·프레임 범위·fps를 가져온다. 불러온 오브젝트에는 `zzz_fbx_source` 속성(원본 .blend 경로)을 단다.
+  - 선택한 메시를 게임 뼈대에: 사본을 `게임 뼈대 시험` 컬렉션에 만들고, 축 바꿈·반전 48가지 × 크기 5가지 중 게임 메시(rest)와 중앙 거리가 가장 작은 변환을 고른다. 번호 그룹은 `<결과>\..\dump_map\**\<부위>_palette_to_bone.json`(메시 이름이 부위 이름으로 시작)으로 이름을 바꾸고, 없으면 게임 메시 전체를 잠깐 합친 것에서 Data Transfer(Generate Data Layers 포함)로 옮긴다.
+  - Data Transfer는 Generate Data Layers를 하지 않으면 그룹이 하나도 안 옮겨진다(0개 → 172개로 확인).
+  - 확인한 값: XXMI Tools "Import XXMI dump folder"(ZZZ 프리셋)와 "Frame Analysis" 가져오기 모두, 피닉스 몸·머리카락이 공격 동작 내내 게임 메시와 0.0 mm로 겹쳤다. 원본 메시의 그룹 이름은 그대로였다.
 
 ## 원리와 함정 (고칠 때 참고)
 - **실행 방법**: CLI는 `app\AnimeStudio.CLI.exe`를 `DOTNET_ROOT=휴대용 .NET 10`으로 직접 실행해야 한다.

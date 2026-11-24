@@ -29,6 +29,7 @@ import zx_find  # noqa: E402
 
 GAME_SUB = Path("ZenlessZoneZero Game") / "ZenlessZoneZero_Data" / "StreamingAssets" / "Blocks"
 CSC = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Microsoft.NET" / "Framework64" / "v4.0.30319" / "csc.exe"
+ADDON = HERE.parent / "blender_addon" / "zzz_character_fbx_tools.py"
 LINKS = {
     "AnimeStudioUltimate 1.8.1": "https://github.com/LegionInstaller/AnimeStudioUltimate/releases",
     ".NET 10 런타임 (Windows x64 zip)": "https://dotnet.microsoft.com/download/dotnet/10.0",
@@ -339,6 +340,28 @@ def dump(a):
     return 0
 
 
+def blend(a):
+    """이미 뽑아 둔 FBX마다 바로 쓰는 .blend를 만든다 (있으면 건너뜀)"""
+    c = need_cfg()
+    Z.optional_path(c, "blender", "Blender 파일 만들기")
+    code = a.code or ask("게임 속 이름")
+    base = Z.char_dir(code)
+    fbxs = sorted(f for d in ("model", "anim") for f in (base / d).glob("*.fbx")) + \
+        sorted(f for d in base.glob("anim_*") for f in d.glob("*.fbx"))
+    if not fbxs:
+        print(f"{base}에 뽑은 FBX가 없습니다. 먼저 캐릭터 뽑기(2번)를 하세요.")
+        return 1
+    for f in fbxs:
+        b = f.with_suffix(".blend")
+        if b.exists():
+            print(f"  있음: {b.relative_to(base)}")
+            continue
+        print(f"  만드는 중: {b.relative_to(base)} (동작이 많으면 몇 분 걸립니다)")
+        Z.make_blend(f, base / f"log_{f.parent.name}_blend.txt")
+    print(f"\nBlender에서 바로 열면 됩니다. 내 모드 메시를 게임 뼈대에 붙이려면 애드온을 쓰세요: {ADDON}")
+    return 0
+
+
 def listing(a):
     base = Z.ROOT / "characters"
     rows = sorted(p for p in base.iterdir() if p.is_dir()) if base.is_dir() else []
@@ -369,13 +392,16 @@ def parser():
     d.add_argument("dump", nargs="?", help="덤프 폴더 이름")
     sub.add_parser("list", help="뽑아 둔 캐릭터 목록")
     sub.add_parser("map", help="검색 지도 다시 만들기 (게임 업데이트 뒤)")
+    bl = sub.add_parser("blend", help="이미 뽑은 FBX로 바로 쓰는 .blend 만들기")
+    bl.add_argument("code", nargs="?", help="게임 속 이름")
     return ap
 
 
 CMDS = {"setup": lambda a: 0 if setup() else 1, "extract": extract, "check": check, "dump": dump,
-        "list": listing, "map": lambda a: run_py("zx_build_map.py")}
-MENU = [("setup", "처음 설정 (한 번만)"), ("extract", "캐릭터 뽑기 (모델 + 동작 FBX)"), ("check", "뽑은 동작 확인 (Blender)"),
-        ("dump", "ZZMI 덤프와 뼈 이름 대조 (선택)"), ("list", "뽑아 둔 캐릭터 목록"), ("map", "검색 지도 다시 만들기 (게임 업데이트 뒤)")]
+        "list": listing, "map": lambda a: run_py("zx_build_map.py"), "blend": blend}
+MENU = [("setup", "처음 설정 (한 번만)"), ("extract", "캐릭터 뽑기 (모델 + 동작 FBX + Blender 파일)"), ("check", "뽑은 동작 확인 (Blender)"),
+        ("dump", "ZZMI 덤프와 뼈 이름 대조 (선택)"), ("list", "뽑아 둔 캐릭터 목록"), ("map", "검색 지도 다시 만들기 (게임 업데이트 뒤)"),
+        ("blend", "이미 뽑은 결과로 Blender 파일 만들기")]
 
 
 def menu(ap):

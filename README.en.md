@@ -34,7 +34,7 @@ A small startup hook makes the CLI load all the needed files **at once**, so the
 | Python 3.10+ | [python.org](https://www.python.org/downloads/) | tick **"Add python.exe to PATH"** |
 | AnimeStudioUltimate 1.8.1 | [GitHub releases](https://github.com/LegionInstaller/AnimeStudioUltimate/releases) | does the actual reading and FBX export (MIT) |
 | .NET 10 runtime | [Microsoft](https://dotnet.microsoft.com/download/dotnet/10.0) | the **Windows x64 zip** is enough; no install |
-| Blender (optional) | [blender.org](https://www.blender.org/download/) | only for motion checks and dump matching (tested on 4.x) |
+| Blender (recommended) | [blender.org](https://www.blender.org/download/) | ready-to-open `.blend` files, the add-on, motion checks, dump matching (tested on 5.2) |
 | ZZ-Model-Importer-Assets (optional) | see [ZZ-Model-Importer](https://github.com/leotorrez/ZZ-Model-Importer) | only for palette → bone matching |
 
 ## How to use
@@ -50,9 +50,11 @@ A small startup hook makes the CLI load all the needed files **at once**, so the
    - Output goes to `%USERPROFILE%\ZZZ_CharacterFBX\characters\<internal name>\`:
      - `model\`: model-only FBX
      - `anim\`: model + all body clips FBX, plus `.animator.json` (state machine and timing)
+     - a ready-to-open `.blend` next to each FBX when Blender is configured
 4. **Optional checks**
    - **3:** extracts 2–3 sample clips and checks in Blender that they move.
-   - **4:** matches a ZZMI dump and writes a `palette_to_bone.json` per part, with a ✓/✗ summary.
+   - **4:** matches a ZZMI dump and writes a `palette_to_bone.json` per part, with a ✓/✗ summary. The add-on uses it to bind mod meshes.
+   - **7:** creates `.blend` files for results extracted earlier.
 
 ## Command line
 ```powershell
@@ -61,12 +63,14 @@ A small startup hook makes the CLI load all the needed files **at once**, so the
 .\zzz-character-fbx-extract.bat check Astra
 .\zzz-character-fbx-extract.bat dump Pheony Pheonix
 .\zzz-character-fbx-extract.bat list
+.\zzz-character-fbx-extract.bat blend Astra
 ```
 Options:
 - `--clips <regex>` extracts only some clips. It matches the start of the clip name after `..._Ani_`; add `$` for an exact name.
 - `--with-facial` includes face clips.
 - `--model-only` extracts only the model.
 - `--code <internal name>` skips the candidate prompt.
+- `--no-blend` skips the `.blend`.
 
 Set the `ZX_ROOT` environment variable to use a different work folder.
 
@@ -74,10 +78,35 @@ Set the `ZX_ROOT` environment variable to use a different work folder.
 - Unit tests (no game files needed): `python -m unittest discover -s tests`
 - Every script prints its arguments with `--help`.
 
-## In Blender
-- The character imports at 1/100 scale. ZZMI dump → FBX is x-flip × 0.01.
-- Clips are 60 fps.
-- Use only the actions that start with the armature's name. `Root|`, `Key|` and `FX_Root|` actions belong to other objects.
+## Using the results (Blender)
+### Just open it
+If Blender is configured, extraction also writes a **`.blend`** next to each FBX. Double-click it.
+- Real size (about 1.5–1.7 m tall), 60 fps, and a viewport that shows textures.
+- All clips are laid out on one timeline with a marker per clip. Press **Space** to play.
+- Attacks and dodges move the character forward (root motion); that is expected.
+- For results extracted earlier, menu **7** creates the `.blend`.
+- Body textures may be missing (AnimeStudio exports only the textures found in the files it read). Shape and motion are unaffected.
+
+### Add-on: pick clips, bind your mod mesh
+Install: Blender → **Edit → Preferences → Add-ons** → ▼ (top right) → **Install from Disk…** → `blender_addon\zzz_character_fbx_tools.py`. Press **N** in the 3D view for the **ZZZ FBX** tab.
+
+- **Pick a clip**: click a clip name in the tab to jump there and loop just that clip.
+- **Preview clipping with your mod mesh**
+  1. Open your mod working file (meshes imported with XXMI Tools).
+  2. **게임 캐릭터 불러오기** (load game character) → pick `anim\….blend` from the results. The skeleton, meshes, clips and markers come in.
+  3. Select your meshes and press **선택한 메시를 게임 뼈대에** (bind selected to game skeleton).
+  4. Copies appear in the `게임 뼈대 시험` collection and follow the game motions. **Your original meshes are untouched.**
+  - Position, scale and mirroring are fitted automatically to the game body.
+  - Numbered vertex groups (`0`, `1`, `2`…) are renamed with `palette_to_bone.json` from menu 4, so **your mod weights are used as-is**. The table is found by mesh name in the same character folder.
+  - Without a table, weights are copied from the nearest game mesh.
+
+### Using the FBX directly
+- When importing the FBX into Blender yourself, set Scale to **100**; otherwise the character is 1.5 cm tall.
+- Only actions starting with the armature's name belong to the armature. `Root|`, `Key|` and `FX_Root|` actions belong to other objects.
+- ZZMI dump coordinates → FBX is x-flip × 0.01.
+
+## Other games
+Zenless Zone Zero only. A test on Genshin Impact 7.0 showed AnimeStudio reads the files, but body meshes there use shared names (`Body`, `Face`) and live in other files, so this tool's lookup produced only the skeleton. Honkai: Star Rail was not tested.
 
 ## Credits
 - [AnimeStudioUltimate](https://github.com/LegionInstaller/AnimeStudioUltimate) does the actual reading and FBX export; the hook only calls its CLI code.

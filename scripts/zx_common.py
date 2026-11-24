@@ -46,6 +46,20 @@ def optional_path(c, key, what):
     return Path(v)
 
 
+def has_path(c, key):
+    """선택 항목이 채워져 있고 실제로 있는지 (멈추지 않고 참/거짓만)"""
+    v = c.get(key, "")
+    return bool(v) and v != NONE and "<" not in v and Path(v).exists()
+
+
+def make_blend(fbx, log):
+    """FBX 옆에 바로 쓸 수 있는 .blend를 만든다 (실제 크기, 60 fps, 동작 마커). 이미 있으면 건너뛰고 그 경로를 돌려준다."""
+    out = Path(fbx).with_suffix(".blend")
+    if not out.exists():
+        run_blender("zx_make_blend_blender.py", [fbx, out], log)
+    return out
+
+
 def decode_console(raw):
     """CLI 콘솔 출력 바이트를 글자로. UTF-8이 아니면 윈도우 OEM 코드 페이지(한국어 윈도우는 cp949)로 읽는다."""
     try:

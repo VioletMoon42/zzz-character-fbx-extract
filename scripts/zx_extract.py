@@ -11,7 +11,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from zx_common import cfg, char_dir, copy_if_changed, game_version, hook_env, load_plan, run_cli  # noqa: E402
+from zx_common import (cfg, char_dir, copy_if_changed, game_version, has_path, hook_env, load_plan,  # noqa: E402
+                       make_blend, run_cli)
 
 NO_CLIPS = r"^ZX_NO_CLIP_MATCHES$"   # 모델만 뽑을 때: 어떤 동작 이름에도 안 맞는 정규식
 
@@ -45,8 +46,9 @@ def gather_input(plan, model_only, c):
     return blks, lst
 
 
-def export(plan, c, lst, outname, clip_rx):
-    """훅으로 모델(+동작)을 FBX로 내보낸다. 출력 폴더가 이미 차 있으면 건너뛰고 None."""
+def export(plan, c, lst, outname, clip_rx, blend=False):
+    """훅으로 모델(+동작)을 FBX로 내보낸다. 출력 폴더가 이미 차 있으면 건너뛰고 None.
+    blend=True이고 Blender가 설정돼 있으면 FBX 옆에 바로 쓸 수 있는 .blend도 만든다."""
     base = char_dir(plan["code"])
     out = base / outname
     if out.exists() and any(out.iterdir()):
@@ -63,6 +65,13 @@ def export(plan, c, lst, outname, clip_rx):
     r = {"seconds": round(time.time() - t0), "clips": clips, "fbx": [str(f) for f in fbx],
          "fbx_mb": [round(f.stat().st_size / 1e6, 1) for f in fbx]}
     print(f"{outname}: FBX {len(fbx)}개 ({', '.join(f'{m} MB' for m in r['fbx_mb'])}), 동작 {clips if clips is not None else '?'}개, {r['seconds']}초")
+    if blend:
+        if has_path(c, "blender"):
+            print(f"{outname}: Blender 파일 만드는 중 (실제 크기, 60 fps, 동작 이름표)...")
+            r["blend"] = [str(make_blend(f, base / f"log_{outname}_blend.txt")) for f in fbx]
+            print(f"{outname}: {', '.join(Path(b).name for b in r['blend'])}")
+        else:
+            print("Blender가 설정돼 있지 않아 .blend는 건너뜀 (FBX는 그대로 쓸 수 있음)")
     return r
 
 
@@ -73,6 +82,7 @@ def main():
     ap.add_argument("--with-facial", action="store_true", help="얼굴 동작도 넣는다")
     ap.add_argument("--model-only", action="store_true", help="모델만 뽑는다")
     ap.add_argument("--out", default="anim", help="동작 FBX 출력 폴더 이름 (기본 anim)")
+    ap.add_argument("--no-blend", action="store_true", help="바로 쓰는 .blend를 만들지 않는다 (기본: Blender가 있으면 만든다)")
     a = ap.parse_args()
     c = cfg()
     plan = load_plan(a.code)
@@ -83,9 +93,9 @@ def main():
     re.compile(clip_rx)   # 잘못된 정규식이면 여기서 바로 알린다
     blks, lst = gather_input(plan, a.model_only, c)
     rep = {"code": a.code, "game_version": gv, "clips_regex": clip_rx, "blks": blks,
-           "model": export(plan, c, lst, "model", NO_CLIPS)}
+           "model": export(plan, c, lst, "model", NO_CLIPS, blend=not a.no_blend)}
     if not a.model_only:
-        rep[a.out] = export(plan, c, lst, a.out, clip_rx)
+        rep[a.out] = export(plan, c, lst, a.out, clip_rx, blend=not a.no_blend)
     (char_dir(a.code) / "extract_report.json").write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
