@@ -46,9 +46,33 @@ def gather_input(plan, model_only, c):
     return blks, lst
 
 
-def export(plan, c, lst, outname, clip_rx, blend=False):
+def weapon_models(plan):
+    """같은 캐릭터의 무기 모델 코드 (예: Pheony_Weapon)"""
+    return [m for m in plan.get("other_models_same_code_prefix", []) if m.endswith("_Weapon")]
+
+
+def export_weapons(plan, c, clip_rx, outname="anim"):
+    """무기 모델에 캐릭터 몸 동작을 입혀 <캐릭터>\\<동작 폴더>_weapon\\에 뽑는다 (anim → anim_weapon).
+    무기 모델은 캐릭터와 같은 이름의 팔 뼈 사슬(Bip001 → … → Hand)과 무기 뼈를 갖고 있고,
+    캐릭터 동작 클립 안에 무기 뼈 움직임이 함께 들어 있다. 그래서 같은 클립을 입히면 손에 쥔 채로 움직인다.
+    돌려주는 값: 무기 FBX 경로 목록 (이미 뽑아 둔 것 포함)"""
+    import zx_find
+    fbx = []
+    for w in weapon_models(plan):
+        r = zx_find.find(w, w)
+        if not r.get("found"):
+            continue
+        combo = dict(r["plan"], code=plan["code"], clip_blks=plan["clip_blks"])
+        wout = f"{outname}_weapon" if len(weapon_models(plan)) == 1 else f"{outname}_{w}"
+        _, lst = gather_input(combo, False, c)
+        export(combo, c, lst, wout, clip_rx)
+        fbx += sorted((char_dir(plan["code"]) / wout).glob("*.fbx"))
+    return fbx
+
+
+def export(plan, c, lst, outname, clip_rx, blend=False, extras=()):
     """훅으로 모델(+동작)을 FBX로 내보낸다. 출력 폴더가 이미 차 있으면 건너뛰고 None.
-    blend=True이고 Blender가 설정돼 있으면 FBX 옆에 바로 쓸 수 있는 .blend도 만든다."""
+    blend=True이고 Blender가 설정돼 있으면 FBX 옆에 바로 쓸 수 있는 .blend도 만든다(extras: 같이 넣을 무기 FBX)."""
     base = char_dir(plan["code"])
     out = base / outname
     if out.exists() and any(out.iterdir()):
@@ -68,7 +92,7 @@ def export(plan, c, lst, outname, clip_rx, blend=False):
     if blend:
         if has_path(c, "blender"):
             print(f"{outname}: Blender 파일 만드는 중 (실제 크기, 60 fps, 동작 이름표)...")
-            r["blend"] = [str(make_blend(f, base / f"log_{outname}_blend.txt")) for f in fbx]
+            r["blend"] = [str(make_blend(f, base / f"log_{outname}_blend.txt", extras)) for f in fbx]
             print(f"{outname}: {', '.join(Path(b).name for b in r['blend'])}")
         else:
             print("Blender가 설정돼 있지 않아 .blend는 건너뜀 (FBX는 그대로 쓸 수 있음)")
@@ -83,6 +107,7 @@ def main():
     ap.add_argument("--model-only", action="store_true", help="모델만 뽑는다")
     ap.add_argument("--out", default="anim", help="동작 FBX 출력 폴더 이름 (기본 anim)")
     ap.add_argument("--no-blend", action="store_true", help="바로 쓰는 .blend를 만들지 않는다 (기본: Blender가 있으면 만든다)")
+    ap.add_argument("--no-weapon", action="store_true", help="무기를 뽑지 않는다 (기본: 무기 모델이 있으면 같은 동작으로 함께 뽑아 .blend에 넣는다)")
     a = ap.parse_args()
     c = cfg()
     plan = load_plan(a.code)
@@ -91,11 +116,16 @@ def main():
         print(f"주의: plan은 게임 {plan['game_version']} 때 만든 것입니다 (지금 {gv}). 실패하면 지도와 plan을 다시 만드세요.")
     clip_rx = clip_regex(plan, a.clips, a.with_facial)
     re.compile(clip_rx)   # 잘못된 정규식이면 여기서 바로 알린다
+    weapons = []
+    if not a.model_only and not a.no_weapon and weapon_models(plan):
+        print(f"무기({', '.join(weapon_models(plan))})를 같은 동작으로 함께 뽑습니다 (빼려면 --no-weapon)")
+        weapons = export_weapons(plan, c, clip_rx, a.out)
     blks, lst = gather_input(plan, a.model_only, c)
     rep = {"code": a.code, "game_version": gv, "clips_regex": clip_rx, "blks": blks,
-           "model": export(plan, c, lst, "model", NO_CLIPS, blend=not a.no_blend)}
+           "model": export(plan, c, lst, "model", NO_CLIPS, blend=not a.no_blend),
+           "weapon_fbx": [str(f) for f in weapons]}
     if not a.model_only:
-        rep[a.out] = export(plan, c, lst, a.out, clip_rx, blend=not a.no_blend)
+        rep[a.out] = export(plan, c, lst, a.out, clip_rx, blend=not a.no_blend, extras=weapons)
     (char_dir(a.code) / "extract_report.json").write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
 
 

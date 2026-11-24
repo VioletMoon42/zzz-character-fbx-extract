@@ -13,6 +13,7 @@ GAP = 10   # 동작 사이 빈 프레임
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 fbx, out = Path(argv[0]), Path(argv[1])
+extras = [Path(p) for p in argv[2:]]      # 같은 동작으로 뽑은 무기 FBX (선택)
 if out.exists():
     print(f"ERROR: 이미 있어서 덮어쓰지 않음: {out}")
     sys.exit(1)
@@ -79,6 +80,55 @@ elif clips:
     act = by_key[(arm.name, clips[0])]
     sc.frame_start, sc.frame_end = int(act.frame_range[0]), int(act.frame_range[1])
     sc.timeline_markers.new(short(clips[0]), frame=sc.frame_start)
+
+
+def add_extra(path):
+    """무기 FBX를 가져와 '무기' 컬렉션에 두고, 동작마다 캐릭터 이름표와 같은 프레임에 놓는다.
+    무기 FBX에는 캐릭터와 같은 이름의 팔 뼈 사슬이 같은 동작으로 들어 있어서, 자리만 맞추면 손에 쥔 채로 움직인다."""
+    marks = {m.name: m.frame for m in sc.timeline_markers}
+    fps, fs, fe = sc.render.fps, sc.frame_start, sc.frame_end
+    objs0, acts0 = set(bpy.data.objects), set(bpy.data.actions)
+    bpy.ops.import_scene.fbx(filepath=str(path), global_scale=100.0)
+    sc.render.fps, sc.frame_start, sc.frame_end = fps, fs, fe
+    new = [o for o in bpy.data.objects if o not in objs0]
+    acts = [x for x in bpy.data.actions if x not in acts0]
+    coll = bpy.data.collections.new("무기")
+    sc.collection.children.link(coll)
+    for o in new:
+        for c in list(o.users_collection):
+            c.objects.unlink(o)
+        coll.objects.link(o)
+        if o.type == "EMPTY":
+            o.empty_display_size = 0.03
+    # 가져오기가 붙여 둔 액션 앞부분으로 주인을 찾는다(이름이 겹쳐 .001이 붙은 오브젝트도)
+    own = {}
+    for o in new:
+        ad = o.animation_data
+        if ad and ad.action and split(ad.action)[0]:
+            own[split(ad.action)[0]] = o
+    placed = 0
+    for pre, o in own.items():
+        ad = o.animation_data
+        ad.action = None
+        tr = ad.nla_tracks.new()
+        tr.name = "동작"
+        for act in acts:
+            p, clip = split(act)
+            if p != pre or short(clip) not in marks:
+                continue
+            s = tr.strips.new(short(clip), int(marks[short(clip)]), act)
+            if hasattr(s, "action_slot") and getattr(act, "slots", None):
+                try:
+                    s.action_slot = act.slots[0]
+                except Exception:
+                    pass
+            placed += 1
+    print(f"EXTRA {path.name}: objects={len(new)} strips={placed}")
+
+
+if len(clips) > 1:
+    for p in extras:
+        add_extra(p)
 sc.frame_set(sc.frame_start)
 
 # 보기 좋게: 머티리얼 미리보기(텍스처 보임), 뼈대 선택

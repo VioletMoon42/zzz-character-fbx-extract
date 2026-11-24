@@ -52,6 +52,7 @@ description: 젠레스 존 제로(ZZZ) 캐릭터의 게임 뼈대·모델·몸 �
    - **확인할 값**: `check_weight_L1`의 median·max가 0 근처여야 표가 맞다. 0이 아니면 그대로 쓰지 말고 원인부터 본다.
    - 좌표 관계도 보고서에 남긴다. 지금까지는 덤프 → FBX가 x 반전 × 0.01이었다.
    - 무기처럼 모델 FBX에 없는 부위는 "맞는 메시 없음"으로 건너뛴다. 무기는 별도 모델(`*_Weapon_Model` 등)이다.
+- **무기**: `zx_extract.py`는 plan의 `other_models_same_code_prefix`에 `<코드>_Weapon`이 있으면 무기 모델 파일 + 캐릭터 동작 파일(`clip_blks`)로 같은 동작 정규식을 걸어 `<동작 폴더>_weapon\`에 따로 뽑고, 캐릭터 `.blend`에 넣는다(`--no-weapon`으로 끔). 무기 모델에는 캐릭터와 같은 이름의 팔 뼈 사슬(Bip001 → … → Forearm 아마추어 → Hand)과 무기 뼈(`Skn_L/R_Wpn_*`, `Skn_Wpn_Tape_*`)가 있고, 무기 뼈 움직임은 캐릭터 동작 클립 안에 있다. 캐릭터만 뽑으면 무기 뼈 곡선이 빠진다. 피닉스 확인: 무기 FBX 123개 동작 83 MB·23초, 이름표 프레임에 맞추면 무기 쪽 Forearm이 캐릭터 Forearm과 0.0 mm.
 5. **동작 확인**: 큰 FBX를 열지 말고, 대표 동작 2~3개만 따로 뽑아 실제로 움직이는지 본다.
    - `zx.py check <코드명>`: Idle_Loop, Attack_Normal_01, Evade_Front_01(있는 것만)을 `anim_check\`에 따로 뽑고 `zx_check_anim_blender.py`로 잰다.
    - `max_move_rel`(이동 거리 ÷ 키)이 대기는 0.1 안팎으로 작고, 공격·회피는 앞으로 나가는 만큼 커지면(피닉스 공격 4.3) 정상이다. 모두 0이면 동작이 뼈대에 안 붙은 것이다.

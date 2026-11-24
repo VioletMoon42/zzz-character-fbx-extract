@@ -224,8 +224,13 @@ def print_plan(name, pl):
     files = len(set(pl["model_blks"] + pl["mesh_blks"] + pl["clip_blks"]))
     print(f"찾음: {name} → 게임 속 이름 {pl['code']}\n  모델 {pl['model_animator']}\n"
           f"  몸 동작 {pl['body_clip_count']}개, 얼굴 동작 {pl['facial_clip_count']}개, 게임 파일 {files}개")
-    if pl["other_models_same_code_prefix"]:
-        print(f"  (다른 모습·무기: {', '.join(pl['other_models_same_code_prefix'])} → 이 이름으로 extract하면 따로 뽑힙니다)")
+    others = pl["other_models_same_code_prefix"]
+    wpn = [m for m in others if m.endswith("_Weapon")]
+    rest = [m for m in others if m not in wpn]
+    if wpn:
+        print(f"  무기: {', '.join(wpn)} → 같은 동작으로 함께 뽑아 .blend에 넣습니다 (빼려면 --no-weapon)")
+    if rest:
+        print(f"  (다른 모습: {', '.join(rest)} → 이 이름으로 extract하면 따로 뽑힙니다)")
 
 
 def extract(a):
@@ -249,7 +254,7 @@ def extract(a):
     pl = r["plan"]
     print_plan(name, pl)
     xa = [pl["code"]] + (["--clips", a.clips] if a.clips else []) + (["--with-facial"] if a.with_facial else []) \
-        + (["--model-only"] if a.model_only else [])
+        + (["--model-only"] if a.model_only else []) + (["--no-weapon"] if getattr(a, "no_weapon", False) else [])
     rc = run_py("zx_extract.py", *xa)
     if rc == 0:
         print(f"\n완료: {Z.char_dir(pl['code'])}\n  model\\ 모델 FBX" + ("" if a.model_only else ", anim\\ 모델 + 동작 FBX"))
@@ -346,8 +351,17 @@ def blend(a):
     Z.optional_path(c, "blender", "Blender 파일 만들기")
     code = a.code or ask("게임 속 이름")
     base = Z.char_dir(code)
+    is_wpn = lambda d: d.name.lower().endswith("weapon")   # 무기 폴더(<동작 폴더>_weapon)는 그 동작 폴더의 .blend에 같이 넣는다
+
+    def weapons_for(folder):
+        """<folder>_weapon 또는 무기가 여럿일 때 <folder>_<코드>_Weapon"""
+        n = folder + "_"
+        ds = [d for d in base.glob(n + "*") if d.is_dir() and is_wpn(d)
+              and (d.name == n + "weapon" or d.name[len(n):].count("_") == 1)]
+        return sorted(w for d in ds for w in d.glob("*.fbx"))
+
     fbxs = sorted(f for d in ("model", "anim") for f in (base / d).glob("*.fbx")) + \
-        sorted(f for d in base.glob("anim_*") for f in d.glob("*.fbx"))
+        sorted(f for d in base.glob("anim_*") if not is_wpn(d) for f in d.glob("*.fbx"))
     if not fbxs:
         print(f"{base}에 뽑은 FBX가 없습니다. 먼저 캐릭터 뽑기(2번)를 하세요.")
         return 1
@@ -356,8 +370,9 @@ def blend(a):
         if b.exists():
             print(f"  있음: {b.relative_to(base)}")
             continue
-        print(f"  만드는 중: {b.relative_to(base)} (동작이 많으면 몇 분 걸립니다)")
-        Z.make_blend(f, base / f"log_{f.parent.name}_blend.txt")
+        extras = [] if f.parent.name == "model" else weapons_for(f.parent.name)
+        print(f"  만드는 중: {b.relative_to(base)}" + (" + 무기" if extras else "") + " (동작이 많으면 몇 분 걸립니다)")
+        Z.make_blend(f, base / f"log_{f.parent.name}_blend.txt", extras)
     print(f"\nBlender에서 바로 열면 됩니다. 내 모드 메시를 게임 뼈대에 붙이려면 애드온을 쓰세요: {ADDON}")
     return 0
 
@@ -385,6 +400,7 @@ def parser():
     e.add_argument("--clips", help="동작 일부만: _Ani_ 다음 이름의 앞부분 정규식, 예: 'Idle_Loop|Attack_Normal_01'")
     e.add_argument("--with-facial", action="store_true", help="얼굴 동작도")
     e.add_argument("--model-only", action="store_true", help="모델만")
+    e.add_argument("--no-weapon", action="store_true", help="무기는 빼고 (기본: 무기 모델이 있으면 같은 동작으로 함께 뽑음)")
     ch = sub.add_parser("check", help="대표 동작만 뽑아 Blender로 움직임 확인")
     ch.add_argument("code", nargs="?", help="게임 속 이름")
     d = sub.add_parser("dump", help="ZZMI 덤프 팔레트 번호 → 뼈 이름 표")

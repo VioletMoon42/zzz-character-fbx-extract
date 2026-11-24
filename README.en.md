@@ -50,6 +50,7 @@ A small startup hook makes the CLI load all the needed files **at once**, so the
    - Output goes to `%USERPROFILE%\ZZZ_CharacterFBX\characters\<internal name>\`:
      - `model\`: model-only FBX
      - `anim\`: model + all body clips FBX, plus `.animator.json` (state machine and timing)
+     - `anim_weapon\`: if the character has a weapon model, it is extracted with the same clips and put into the `anim\` `.blend`, **held in hand** (Weapon collection). Skip with `--no-weapon`.
      - a ready-to-open `.blend` next to each FBX when Blender is configured
 4. **Optional checks**
    - **3:** extracts 2–3 sample clips and checks in Blender that they move.
@@ -71,6 +72,7 @@ Options:
 - `--model-only` extracts only the model.
 - `--code <internal name>` skips the candidate prompt.
 - `--no-blend` skips the `.blend`.
+- `--no-weapon` skips the weapon.
 
 Set the `ZX_ROOT` environment variable to use a different work folder.
 

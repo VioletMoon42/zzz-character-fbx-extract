@@ -52,11 +52,12 @@ def has_path(c, key):
     return bool(v) and v != NONE and "<" not in v and Path(v).exists()
 
 
-def make_blend(fbx, log):
-    """FBX 옆에 바로 쓸 수 있는 .blend를 만든다 (실제 크기, 60 fps, 동작 마커). 이미 있으면 건너뛰고 그 경로를 돌려준다."""
+def make_blend(fbx, log, extras=()):
+    """FBX 옆에 바로 쓸 수 있는 .blend를 만든다 (실제 크기, 60 fps, 동작 마커). 이미 있으면 건너뛰고 그 경로를 돌려준다.
+    extras: 같은 동작으로 뽑은 무기 FBX. 같은 .blend에 넣고 동작마다 같은 자리에 놓는다."""
     out = Path(fbx).with_suffix(".blend")
     if not out.exists():
-        run_blender("zx_make_blend_blender.py", [fbx, out], log)
+        run_blender("zx_make_blend_blender.py", [fbx, out, *extras], log)
     return out
 
 

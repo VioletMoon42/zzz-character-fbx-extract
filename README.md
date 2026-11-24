@@ -54,6 +54,7 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 결과는 `%USERPROFILE%\ZZZ_CharacterFBX\characters\<게임 속 이름>\`에 생깁니다.
 - `model\`: 모델만 든 FBX (수 MB)
 - `anim\`: 모델 + 몸 동작 전체 FBX (수백 MB)와 `.animator.json` (동작 연결·타이밍)
+     - `anim_weapon\`: 무기가 있는 캐릭터는 무기도 같은 동작으로 뽑아, `anim\`의 `.blend`에 **손에 쥔 채로** 함께 넣습니다(무기 컬렉션). 빼려면 `--no-weapon`.
 - 각 폴더의 `.blend`: Blender가 있으면 같이 만듭니다. 바로 열어 쓰는 파일입니다(아래 "뽑은 결과 쓰는 법").
 
 ### 4. 확인 (선택)
@@ -76,6 +77,7 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 - `--model-only`: 모델만
 - `--code <게임 속 이름>`: 후보 고르기를 건너뛰고 바로
 - `--no-blend`: `.blend`를 만들지 않음
+- `--no-weapon`: 무기를 뽑지 않음
 
 작업 폴더를 바꾸려면 환경 변수 `ZX_ROOT`를 정합니다.
 
