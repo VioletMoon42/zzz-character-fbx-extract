@@ -38,7 +38,7 @@ A small startup hook makes the CLI load all the needed files **at once**, so the
 | ZZ-Model-Importer-Assets (optional) | see [ZZ-Model-Importer](https://github.com/leotorrez/ZZ-Model-Importer) | only for palette → bone matching |
 
 ## How to use
-1. **Download:** use **Code → Download ZIP** and unzip it anywhere.
+1. **Download:** get **Source code (zip)** from the [latest release](https://github.com/VioletMoon42/zzz-game-extract/releases/latest) and unzip it anywhere. It contains no binaries.
 2. **First-time setup**
    1. Double-click `zzz-extract.bat` and choose menu **1** (setup).
    2. It creates the work folder `%USERPROFILE%\ZZZ_GameExtract` and tells you what to unzip into its `tools` folder.

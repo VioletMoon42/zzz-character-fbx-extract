@@ -37,7 +37,7 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 
 ## 쓰는 법
 ### 1. 받기
-이 페이지 위쪽 **Code → Download ZIP**으로 받아 아무 곳에 풉니다.
+[최신 릴리스](https://github.com/VioletMoon42/zzz-game-extract/releases/latest)에서 **Source code (zip)**을 받아 아무 곳에 풉니다. 실행 파일은 들어 있지 않습니다.
 
 ### 2. 처음 설정 (한 번만)
 1. `zzz-extract.bat`을 더블클릭하고 메뉴에서 **1. 처음 설정**을 고릅니다.
