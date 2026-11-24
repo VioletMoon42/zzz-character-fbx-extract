@@ -91,14 +91,17 @@ If Blender is configured, extraction also writes a **`.blend`** next to each FBX
 Install: Blender → **Edit → Preferences → Add-ons** → ▼ (top right) → **Install from Disk…** → `blender_addon\zzz_character_fbx_tools.py`. Press **N** in the 3D view for the **ZZZ FBX** tab.
 
 - **Pick a clip**: click a clip name in the tab to jump there and loop just that clip.
+- **화면이 캐릭터 따라가기** (view follows character): keeps the character centred while attacks and dodges move it tens of metres. It follows forward/back and sideways only, not up and down. Press again to turn it off.
+- **모드 불러오기 (ZZMI)** (import ZZMI mod): pick a finished ZZMI mod's `.ini` to bring its meshes, with weights, into Blender. One object per draw call, named from the ini comments. Textures are not imported.
 - **Preview clipping with your mod mesh**
-  1. Open your mod working file (meshes imported with XXMI Tools).
+  1. Open your mod working file (meshes imported with XXMI Tools), or import a mod with **모드 불러오기 (ZZMI)**.
   2. **게임 캐릭터 불러오기** (load game character) → pick `anim\….blend` from the results. The skeleton, meshes, clips and markers come in.
   3. Select your meshes and press **선택한 메시를 게임 뼈대에** (bind selected to game skeleton).
   4. Copies appear in the `게임 뼈대 시험` collection and follow the game motions. **Your original meshes are untouched.**
   - Position, scale and mirroring are fitted automatically to the game body.
   - Numbered vertex groups (`0`, `1`, `2`…) are renamed with `palette_to_bone.json` from menu 4, so **your mod weights are used as-is**. The table is found by mesh name in the same character folder.
-  - Without a table, weights are copied from the nearest game mesh.
+  - Before binding, the table is checked against the game mesh. If the numbers don't match (for example a mod made for an older game version), each group is relinked to the nearest game bone, keeping the mod's weight shapes. The result message shows the match rate.
+  - Without a table, or when neither fits, weights are copied from the nearest game mesh.
 
 ### Using the FBX directly
 - When importing the FBX into Blender yourself, set Scale to **100**; otherwise the character is 1.5 cm tall.
