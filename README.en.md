@@ -105,9 +105,6 @@ Install: Blender → **Edit → Preferences → Add-ons** → ▼ (top right) �
 - Only actions starting with the armature's name belong to the armature. `Root|`, `Key|` and `FX_Root|` actions belong to other objects.
 - ZZMI dump coordinates → FBX is x-flip × 0.01.
 
-## Other games
-Zenless Zone Zero only. A test on Genshin Impact 7.0 showed AnimeStudio reads the files, but body meshes there use shared names (`Body`, `Face`) and live in other files, so this tool's lookup produced only the skeleton. Honkai: Star Rail was not tested.
-
 ## Credits
 - [AnimeStudioUltimate](https://github.com/LegionInstaller/AnimeStudioUltimate) does the actual reading and FBX export; the hook only calls its CLI code.
 - [ZZ-Model-Importer (ZZMI)](https://github.com/leotorrez/ZZ-Model-Importer) and ZZ-Model-Importer-Assets.
