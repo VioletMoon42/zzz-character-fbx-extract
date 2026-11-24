@@ -30,7 +30,8 @@ bl_info = {
 
 TAG = "zzz_fbx_source"          # 불러온 게임 오브젝트 표시 (값 = 원본 .blend 경로)
 TEST_COLL = "게임 뼈대 시험"
-SCALES = (1.0, 0.01, 100.0, 0.1, 10.0)
+# 자료끼리 단위 차이는 100배(cm↔m)뿐이다. 0.1·10을 넣으면 작게 줄인 사본이 몸 점들 사이에 묻혀 거리가 짧게 나와 잘못 고른다
+SCALES = (1.0, 0.01, 100.0)
 
 
 def game_objects(context):
@@ -59,12 +60,12 @@ def top_group(v, names):
     return names.get(best.group) if best and best.weight > 0 else None
 
 
-def game_bone_tree(body):
+def game_bone_tree(body, xf):
     """게임 메시 rest 정점 → 그 정점의 주 뼈 이름. 모드 웨이트가 맞는지 대조하는 기준"""
     pts, bones = [], []
     for b in body:
         names = {g.index: g.name for g in b.vertex_groups}
-        mw = b.matrix_world
+        mw = xf @ b.matrix_world
         for v in b.data.vertices:
             n = top_group(v, names)
             if n:
@@ -77,30 +78,78 @@ def game_bone_tree(body):
     return t, bones
 
 
-def nearest_bones(c, gtree, gbones):
-    """사본 정점마다 (그 정점의 주 그룹 이름, 가장 가까운 게임 정점의 주 뼈)"""
+def nearest_bones(c, gtree, gbones, mw, k=8, limit=20000):
+    """사본 정점마다 (주 그룹 이름, 가장 가까운 게임 정점의 주 뼈, 가까운 게임 정점 k개의 주 뼈들)"""
     names = {g.index: g.name for g in c.vertex_groups}
-    mw = c.matrix_world
+    vs = list(c.data.vertices)
     out = []
-    for v in c.data.vertices:
+    for v in vs[:: max(1, len(vs) // limit)]:
         n = top_group(v, names)
         if n is not None:
-            out.append((n, gbones[gtree.find(mw @ v.co)[1]]))
+            near = gtree.find_n(mw @ v.co, k)
+            out.append((n, gbones[near[0][1]], {gbones[i] for _, i, _ in near}))
     return out
 
 
 def agreement(pairs, mapping):
-    """모드 그룹 → 뼈 이름 표를 썼을 때 주 뼈가 게임 메시와 같은 정점 비율"""
-    return sum(mapping.get(n) == g for n, g in pairs) / max(1, len(pairs))
+    """모드 그룹 → 뼈 이름 표를 썼을 때 주 뼈가 가까운 게임 정점들의 주 뼈 중 하나인 정점 비율.
+    (모드 몸 모양이 원본과 조금 달라 경계에서 이웃 뼈가 이기는 것은 맞은 것으로 본다. 틀린 표는 신발 → 쇄골처럼 동떨어진다)"""
+    return sum(mapping.get(n) in gs for n, _, gs in pairs) / max(1, len(pairs))
+
+
+def median_err(M, src_pts, tree, height):
+    sample = src_pts[:: max(1, len(src_pts) // 1500)]
+    d = sorted(tree.find(M @ p)[2] for p in sample)
+    return d[len(d) // 2] / height
+
+
+def common_shift(objs, tree, height, rounds=4):
+    """선택한 메시 전체를 함께 옮겨 맞출 위치 차이. 게임 자료의 원점이 모드와 몇 cm 다를 때(나히다 glb 등)만 쓰인다.
+    메시마다 따로 옮기면 한쪽에만 있는 조각(어깨 장식 등)이 몸 안으로 끌려 들어가므로 전체를 한 번에,
+    그리고 전체 오차가 키의 1%를 넘고 옮겨서 25% 넘게 나아질 때만 쓴다."""
+    pts = []
+    for o in objs:
+        src = rest_points([o], limit=20000)
+        M = best_fit(src, tree, height)[0][0]
+        pts += [M @ p for p in src[:: max(1, len(src) // 1500)]]
+    def err(s):
+        d = sorted(tree.find(p + s)[2] for p in pts)
+        return d[len(d) // 2] / height
+    e0 = err(Vector())
+    if e0 <= 0.01:
+        return Vector()
+    s = Vector()
+    for _ in range(rounds):
+        ds = [tree.find(p + s)[0] - (p + s) for p in pts]
+        s += Vector([sorted(d[i] for d in ds)[len(ds) // 2] for i in range(3)])
+    return s if err(s) < e0 * 0.75 else Vector()
 
 
 def vote_mapping(pairs):
     """그룹마다 그 그룹이 주 그룹인 정점들의 '가까운 게임 뼈' 다수결"""
     from collections import Counter, defaultdict
     votes = defaultdict(Counter)
-    for n, g in pairs:
+    for n, g, _ in pairs:
         votes[n][g] += 1
     return {n: cnt.most_common(1)[0][0] for n, cnt in votes.items()}
+
+
+def link_leftovers(c, gtree, gbones, bones, mw):
+    """이름을 붙인 뒤에도 뼈 이름이 아닌 그룹(표·다수결에서 빠진, 늘 보조 웨이트로만 쓰이는 번호 등)을
+    그 그룹 정점들 자리의 게임 뼈(웨이트 합 다수결)로 연결한다. 그대로 두면 그 몫만큼 정점이 제자리에 남아 길게 늘어난다."""
+    from collections import Counter, defaultdict
+    left = {g.index: g.name for g in c.vertex_groups if g.name not in bones}
+    if not left:
+        return 0
+    votes = defaultdict(Counter)
+    for v in c.data.vertices:
+        hit = [(g.group, g.weight) for g in v.groups if g.group in left and g.weight > 0]
+        if hit:
+            b = gbones[gtree.find(mw @ v.co)[1]]
+            for gi, w in hit:
+                votes[left[gi]][b] += w
+    rename_groups(c, {n: cnt.most_common(1)[0][0] for n, cnt in votes.items()})
+    return len(votes)
 
 
 def rename_groups(c, mapping):
@@ -134,15 +183,14 @@ def candidate_matrices():
 
 
 def best_fit(src_pts, tree, height):
-    """src 점들을 게임 몸에 가장 잘 겹치게 하는 축 바꿈·반전·크기 (원점 기준). (행렬, 중앙 거리 / 키)"""
+    """src 점들을 게임 몸에 겹치게 하는 축 바꿈·반전·크기 후보 (원점 기준). [(행렬, 중앙 거리 / 키)] 가까운 순"""
     sample = src_pts[:: max(1, len(src_pts) // 1500)]
-    best = None
+    out = []
     for M in candidate_matrices():
         d = sorted(tree.find(M @ p)[2] for p in sample)
-        med = d[len(d) // 2]
-        if best is None or med < best[1]:
-            best = (M, med)
-    return best[0], best[1] / height
+        out.append((M, d[len(d) // 2] / height))
+    out.sort(key=lambda x: x[1])
+    return out
 
 
 def find_palette(src_blend, obj):
@@ -343,32 +391,49 @@ class ZZZFBX_OT_bind(bpy.types.Operator):
         if not sel:
             self.report({"ERROR"}, "붙일 내 메시를 선택하세요 (불러온 게임 메시 말고)")
             return {"CANCELLED"}
-        gp = rest_points(body)
+        # 게임 메시 자신의 좌표(정점 데이터 그대로)에서 맞춘다. 모드 데이터와는 축 바꿈·반전·단위만 다르다.
+        # 뼈대 오브젝트 자체가 프레임마다 움직이고 도는 자료(glTF 등)도 이 좌표는 변하지 않는다.
+        # 사본은 게임 메시와 같은 부모·변환을 받아 게임 메시와 똑같이 따라간다.
+        # 게임 메시에 zzz_rest_matrix(메시 데이터 → 바로 선 게임 좌표)가 있으면 그 좌표에서, 없으면 월드 좌표에서 맞춘다.
+        ref = max(body, key=lambda b: len(b.data.vertices))
+        W = Matrix(ref["zzz_rest_matrix"]) if "zzz_rest_matrix" in ref else ref.matrix_world.copy()
+        ainv = W @ ref.matrix_world.inverted()
+        gp = [ainv @ p for p in rest_points(body)]
         tree = KDTree(len(gp))
         for i, p in enumerate(gp):
             tree.insert(p, i)
         tree.balance()
-        height = max(p.z for p in gp) - min(p.z for p in gp)
+        height = max(max(p[i] for p in gp) - min(p[i] for p in gp) for i in range(3))
 
         coll = bpy.data.collections.get(TEST_COLL) or bpy.data.collections.new(TEST_COLL)
         if coll.name not in context.scene.collection.children:
             context.scene.collection.children.link(coll)
         src_blend = arm.get(TAG)
         gtree = gbones = None
+        shift = None
         lines = []
         for o in sel:
             c = o.copy()
             c.data = o.data.copy()
             c.name = o.name + "_게임뼈대"
-            c.parent = None
-            c.matrix_world = o.matrix_world.copy()
+            c.parent = ref.parent
+            c.parent_type = ref.parent_type
+            c.parent_bone = ref.parent_bone
+            c.matrix_parent_inverse = ref.matrix_parent_inverse.copy()
             for md in [m for m in c.modifiers if m.type == "ARMATURE"]:
                 c.modifiers.remove(md)
             coll.objects.link(c)
-            # 1) 위치 맞추기
-            M, err = best_fit(rest_points([c]), tree, height)
-            c.matrix_world = M @ c.matrix_world
-            how = f"위치 오차 {err * 100:.1f}% (키 대비)"
+            # 1) 위치 맞추기 (후보를 거리순으로; 몸은 거의 좌우 대칭이라 거울상도 거리가 비슷하다)
+            base = o.matrix_world.copy()
+            src = rest_points([o])
+            fits = best_fit(src, tree, height)
+            if shift is None:
+                shift = common_shift(sel, tree, height)
+            if shift.length:
+                fits = [(Matrix.Translation(shift) @ Mi, ei) for Mi, ei in fits[:12]]
+                fits = sorted(((Mi, median_err(Mi, src, tree, height)) for Mi, _ in fits), key=lambda f: f[1])
+            M, err = fits[0]
+            c.matrix_basis = ref.matrix_basis @ W.inverted() @ M @ base
             # 2) 웨이트
             names = [g.name for g in c.vertex_groups]
             numeric = names and all(n.isdigit() for n in names)
@@ -380,32 +445,37 @@ class ZZZFBX_OT_bind(bpy.types.Operator):
                     first = find_palette(src_blend, o)
                     cands = ([first] if first else []) + [p for p in all_palettes(src_blend) if p != first]
                 cands = [p for p in cands if p.exists()]
-                if not cands:
+                # (표 이름, 표). 파일 표 + 뼈대에 담긴 표(다른 도구가 게임 스킨 순서대로 넣어 둔 것, 속성 zzz_palette_tables)
+                tables = [(p.name, json.loads(p.read_text(encoding="utf-8"))) for p in cands]
+                if not self.palette and arm.get("zzz_palette_tables"):
+                    tables += list(json.loads(arm["zzz_palette_tables"]).items())
+                tables = [(k, {i: b for i, b in t.items() if b in bones}) for k, t in tables]
+                if not tables:
                     lines.append(f"{o.name}: 번호 그룹인데 palette_to_bone.json을 못 찾음 → 게임 몸에서 웨이트를 옮김")
                     self.transfer(context, c, body)
-                    how += ", 웨이트 옮김"
+                    how = f"위치 오차 {err * 100:.1f}% (키 대비), 웨이트 옮김"
                 else:
                     # 표대로 붙이기 전에, 표가 이 모드에 맞는지 게임 메시와 대조한다.
                     # (모드가 예전 게임 버전에서 만들어졌거나 뼈 번호를 다르게 쓰면 신발이 팔 뼈를 따라가는 식으로 흩어진다)
                     # 이름으로 고른 표가 없거나 안 맞으면 다른 부위 표도 대 보고 가장 잘 맞는 것을 쓴다.
+                    # 거리가 비슷한 위치 후보(거울상 등)도 함께 대 보고, 뼈가 가장 잘 맞는 쪽을 고른다(좌우 뒤바뀜 방지).
                     if gtree is None:
-                        gtree, gbones = game_bone_tree(body)
-                    pairs = nearest_bones(c, gtree, gbones)
+                        gtree, gbones = game_bone_tree(body, ainv)
                     best = None
-                    for p in cands:
-                        t = json.loads(p.read_text(encoding="utf-8"))
-                        t = {k: v for k, v in t.items() if v in bones}
-                        ok = agreement(pairs, t)
-                        if best is None or ok > best[0]:
-                            best = (ok, p, t)
-                        if ok >= 0.9:
-                            break
-                    ok_table, f, table = best
+                    for Mi, ei in [f for f in fits if f[1] <= fits[0][1] * 1.15 + 0.0005][:6]:
+                        pairs_i = nearest_bones(c, gtree, gbones, Mi @ base)
+                        for label, t in tables:
+                            ok = agreement(pairs_i, t)
+                            if best is None or (ok, -ei) > (best[0], -best[4]):
+                                best = (ok, label, t, Mi, ei, pairs_i)
+                    ok_table, f, table, M, err, pairs = best
+                    c.matrix_basis = ref.matrix_basis @ W.inverted() @ M @ base
+                    how = f"위치 오차 {err * 100:.1f}% (키 대비)"
                     voted = vote_mapping(pairs)
                     ok_vote = agreement(pairs, voted)
                     if ok_table >= 0.5:
                         rename_groups(c, table)
-                        how += f", 표 {f.name} (게임 메시와 주 뼈 일치 {ok_table:.0%})"
+                        how += f", 표 {f} (게임 메시와 주 뼈 일치 {ok_table:.0%})"
                     elif ok_vote >= 0.6:
                         rename_groups(c, voted)
                         how += (f", 표가 이 모드와 안 맞음(일치 {ok_table:.0%}) → 그룹마다 가까운 게임 뼈로 다시 연결"
@@ -413,10 +483,15 @@ class ZZZFBX_OT_bind(bpy.types.Operator):
                     else:
                         self.transfer(context, c, body)
                         how += f", 표가 이 모드와 안 맞음(일치 {ok_table:.0%}) → 게임 몸에서 웨이트를 옮김"
-            elif not (set(names) & bones):
-                self.transfer(context, c, body)
-                how += ", 웨이트 옮김"
-            # 3) 뼈대에 붙이기
+                    n_left = link_leftovers(c, gtree, gbones, bones, M @ base)
+                    if n_left:
+                        how += f", 남은 번호 그룹 {n_left}개는 그 자리의 게임 뼈로"
+            else:
+                how = f"위치 오차 {err * 100:.1f}% (키 대비)"
+                if not (set(names) & bones):
+                    self.transfer(context, c, body)
+                    how += ", 웨이트 옮김"
+            # 3) 뼈대에 붙이기. 뼈대 오브젝트 자체가 움직이는 자료(glTF 등)도 따라가게 뼈대의 자식으로(지금 위치 유지)
             md = c.modifiers.new("게임 뼈대", "ARMATURE")
             md.object = arm
             lines.append(f"{c.name}: {how}" + ("  ← 많이 어긋남, 결과를 확인하세요" if err > 0.03 else ""))
@@ -429,6 +504,7 @@ class ZZZFBX_OT_bind(bpy.types.Operator):
     def transfer(context, c, body):
         """게임 메시 전체(rest 자세)를 잠깐 하나로 합쳐 원본으로 삼고, 가장 가까운 면의 웨이트를 옮긴다"""
         import bmesh
+        context.view_layer.update()     # 사본의 새 위치(뼈대 기준)를 월드 행렬에 반영
         bm = bmesh.new()
         names = []
         for b in body:
@@ -465,7 +541,8 @@ class ZZZFBX_OT_bind(bpy.types.Operator):
             md.use_object_transform = True
             md.use_vert_data = True
             md.data_types_verts = {"VGROUP_WEIGHTS"}
-            md.vert_mapping = "POLYINTERP_NEAREST"
+            # 면 없는 게임 메시(점만 있는 자료)는 가까운 점에서 옮긴다
+            md.vert_mapping = "POLYINTERP_NEAREST" if len(src_me.polygons) else "NEAREST"
             with context.temp_override(object=c, active_object=c, selected_objects=[c], selected_editable_objects=[c]):
                 bpy.ops.object.datalayout_transfer(modifier=md.name)
                 bpy.ops.object.modifier_apply(modifier=md.name)
