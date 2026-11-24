@@ -1,4 +1,4 @@
-// AnimeStudio.CLI 안에서 여러 게임 파일을 한꺼번에 읽어 모델 + 동작을 FBX 하나로 내보내는 시작 훅 (zzz-game-extract 스킬, 2026-11-24)
+// AnimeStudio.CLI 안에서 여러 게임 파일을 한꺼번에 읽어 모델 + 동작을 FBX 하나로 내보내는 시작 훅 (zzz-character-fbx-extract 스킬, 2026-11-24)
 // CLI는 파일을 하나씩 따로 읽어서, 몸 메시·동작이 다른 파일에 있으면 같이 안 나온다. 그래서 CLI 자체 코드(Studio, Exporter)를
 // 반사(reflection)로 불러 한 번에 읽게 한다. CLI 코드는 그대로 쓰고 고치지 않는다.
 // 빌드: C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe -target:library -out:ExtractHook.dll ExtractHook.cs

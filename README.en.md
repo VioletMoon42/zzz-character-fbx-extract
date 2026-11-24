@@ -1,4 +1,4 @@
-# zzz-game-extract
+# ZZZ Character FBX Extract
 
 A tool that exports a Zenless Zone Zero (ZZZ) character's **game skeleton + model + all body animations** into a single FBX, from the game files installed on your own PC. It also builds a **bone palette index → real bone name** table for ZZMI (ZZ-Model-Importer) dumps.
 
@@ -38,16 +38,16 @@ A small startup hook makes the CLI load all the needed files **at once**, so the
 | ZZ-Model-Importer-Assets (optional) | see [ZZ-Model-Importer](https://github.com/leotorrez/ZZ-Model-Importer) | only for palette → bone matching |
 
 ## How to use
-1. **Download:** get **Source code (zip)** from the [latest release](https://github.com/VioletMoon42/zzz-game-extract/releases/latest) and unzip it anywhere. It contains no binaries.
+1. **Download:** get **Source code (zip)** from the [latest release](https://github.com/VioletMoon42/zzz-character-fbx-extract/releases/latest) and unzip it anywhere. It contains no binaries.
 2. **First-time setup**
-   1. Double-click `zzz-extract.bat` and choose menu **1** (setup).
-   2. It creates the work folder `%USERPROFILE%\ZZZ_GameExtract` and tells you what to unzip into its `tools` folder.
+   1. Double-click `zzz-character-fbx-extract.bat` and choose menu **1** (setup).
+   2. It creates the work folder `%USERPROFILE%\ZZZ_CharacterFBX` and tells you what to unzip into its `tools` folder.
    3. Unzip AnimeStudioUltimate and the .NET 10 runtime into `tools`; any folder names work.
    4. Choose **1** again. It finds the game, the tools and Blender, saves the config, and builds the hook with the compiler that ships with Windows.
 3. **Extract:** choose **2**, then type an English name such as `Astra` or `Phoenix`.
    - The first time, and after game updates, it builds a search map first (~7 min, ~4 GB temporary space).
    - If the name differs from the internal one (Phoenix → Pheony), pick a candidate by number. It remembers your choice.
-   - Output goes to `%USERPROFILE%\ZZZ_GameExtract\characters\<internal name>\`:
+   - Output goes to `%USERPROFILE%\ZZZ_CharacterFBX\characters\<internal name>\`:
      - `model\`: model-only FBX
      - `anim\`: model + all body clips FBX, plus `.animator.json` (state machine and timing)
 4. **Optional checks**
@@ -56,11 +56,11 @@ A small startup hook makes the CLI load all the needed files **at once**, so the
 
 ## Command line
 ```powershell
-.\zzz-extract.bat extract Astra
-.\zzz-extract.bat extract Astra --clips "Idle_Loop|Attack_Normal_01"
-.\zzz-extract.bat check Astra
-.\zzz-extract.bat dump Pheony Pheonix
-.\zzz-extract.bat list
+.\zzz-character-fbx-extract.bat extract Astra
+.\zzz-character-fbx-extract.bat extract Astra --clips "Idle_Loop|Attack_Normal_01"
+.\zzz-character-fbx-extract.bat check Astra
+.\zzz-character-fbx-extract.bat dump Pheony Pheonix
+.\zzz-character-fbx-extract.bat list
 ```
 Options:
 - `--clips <regex>` extracts only some clips. It matches the start of the clip name after `..._Ani_`; add `$` for an exact name.

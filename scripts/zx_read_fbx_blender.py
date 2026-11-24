@@ -1,4 +1,4 @@
-# 게임에서 뽑은 캐릭터 모델 FBX를 읽어 메시(정점·UV·웨이트)·뼈대 정보를 npz/json으로 저장한다 (zzz-game-extract, FBX는 읽기만)
+# 게임에서 뽑은 캐릭터 모델 FBX를 읽어 메시(정점·UV·웨이트)·뼈대 정보를 npz/json으로 저장한다 (zzz-character-fbx-extract, FBX는 읽기만)
 # blender -b --factory-startup --python zx_read_fbx_blender.py -- <fbx> <출력 폴더>
 import bpy, sys, json
 import numpy as np

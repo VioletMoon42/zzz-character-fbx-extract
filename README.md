@@ -1,4 +1,4 @@
-# zzz-game-extract
+# ZZZ Character FBX Extract
 
 젠레스 존 제로(ZZZ) 캐릭터의 **게임 뼈대 + 모델 + 몸 동작 전체**를 내 PC에 설치된 게임 파일에서 FBX 하나로 뽑는 도구입니다. ZZMI(ZZ-Model-Importer) 덤프의 **뼈 팔레트 번호 → 실제 뼈 이름** 표도 만들어 줍니다.
 
@@ -37,11 +37,11 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 
 ## 쓰는 법
 ### 1. 받기
-[최신 릴리스](https://github.com/VioletMoon42/zzz-game-extract/releases/latest)에서 **Source code (zip)**을 받아 아무 곳에 풉니다. 실행 파일은 들어 있지 않습니다.
+[최신 릴리스](https://github.com/VioletMoon42/zzz-character-fbx-extract/releases/latest)에서 **Source code (zip)**을 받아 아무 곳에 풉니다. 실행 파일은 들어 있지 않습니다.
 
 ### 2. 처음 설정 (한 번만)
-1. `zzz-extract.bat`을 더블클릭하고 메뉴에서 **1. 처음 설정**을 고릅니다.
-2. 작업 폴더(`%USERPROFILE%\ZZZ_GameExtract`)가 생기고, 그 안의 `tools` 폴더에 무엇을 풀어야 하는지 알려 줍니다.
+1. `zzz-character-fbx-extract.bat`을 더블클릭하고 메뉴에서 **1. 처음 설정**을 고릅니다.
+2. 작업 폴더(`%USERPROFILE%\ZZZ_CharacterFBX`)가 생기고, 그 안의 `tools` 폴더에 무엇을 풀어야 하는지 알려 줍니다.
 3. AnimeStudioUltimate zip과 .NET 10 런타임 zip을 `tools` 안에 풉니다. 폴더 이름은 자유입니다.
 4. 다시 **1. 처음 설정**을 고릅니다. 게임 폴더, 도구, Blender를 찾아 설정을 저장하고, 훅도 알아서 빌드합니다. 윈도우에 기본으로 들어 있는 컴파일러를 쓰므로 따로 설치할 것은 없습니다.
 
@@ -51,7 +51,7 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 3. 이름이 게임 속 이름과 다르면 후보가 나옵니다. 번호로 고르면 됩니다. 예를 들어 Phoenix의 게임 속 이름은 Pheony입니다. 한 번 고르면 기억합니다.
 4. 몸 동작이 100개쯤이면 5~10분 걸립니다.
 
-결과는 `%USERPROFILE%\ZZZ_GameExtract\characters\<게임 속 이름>\`에 생깁니다.
+결과는 `%USERPROFILE%\ZZZ_CharacterFBX\characters\<게임 속 이름>\`에 생깁니다.
 - `model\`: 모델만 든 FBX (수 MB)
 - `anim\`: 모델 + 몸 동작 전체 FBX (수백 MB)와 `.animator.json` (동작 연결·타이밍)
 
@@ -62,11 +62,11 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 ## 명령으로 쓰기
 메뉴 대신 명령으로도 됩니다(PowerShell, 압축 푼 폴더에서).
 ```powershell
-.\zzz-extract.bat extract Astra
-.\zzz-extract.bat extract Astra --clips "Idle_Loop|Attack_Normal_01"
-.\zzz-extract.bat check Astra
-.\zzz-extract.bat dump Pheony Pheonix
-.\zzz-extract.bat list
+.\zzz-character-fbx-extract.bat extract Astra
+.\zzz-character-fbx-extract.bat extract Astra --clips "Idle_Loop|Attack_Normal_01"
+.\zzz-character-fbx-extract.bat check Astra
+.\zzz-character-fbx-extract.bat dump Pheony Pheonix
+.\zzz-character-fbx-extract.bat list
 ```
 - `--clips <정규식>`: 동작 일부만. 동작 이름(`..._Ani_` 다음)의 앞부분에 맞춥니다. 정확히 그 동작 하나만이면 끝에 `$`를 붙입니다.
 - `--with-facial`: 얼굴 동작도
@@ -92,7 +92,7 @@ AnimeStudio CLI는 게임 파일(.blk)을 **하나씩 따로** 읽습니다. 그
 - 각 스크립트는 `--help`로 인자를 보여 줍니다. 구조와 함정은 [SKILL.md](SKILL.md)의 "원리와 함정"에 있습니다.
 
 ## Claude Code 스킬로 쓰기
-이 폴더를 `%USERPROFILE%\.claude\skills\zzz-game-extract\`에 두면 "아스트라 게임 동작 뽑아줘"처럼 말로 시킬 수 있습니다. 순서와 확인할 값은 [SKILL.md](SKILL.md)에 있습니다.
+이 폴더를 `%USERPROFILE%\.claude\skills\zzz-character-fbx-extract\`에 두면 "아스트라 게임 동작 뽑아줘"처럼 말로 시킬 수 있습니다. 순서와 확인할 값은 [SKILL.md](SKILL.md)에 있습니다.
 
 ## 감사
 - [AnimeStudioUltimate](https://github.com/LegionInstaller/AnimeStudioUltimate): 실제 읽기와 FBX 내보내기는 이 도구가 합니다. 훅은 그 CLI 코드를 그대로 불러 쓸 뿐입니다.

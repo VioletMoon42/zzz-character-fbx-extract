@@ -1,5 +1,5 @@
-# zzz-game-extract 공용 설정·도우미
-# 작업 폴더(ROOT): 환경 변수 ZX_ROOT, 없으면 사용자 폴더의 ZZZ_GameExtract
+# zzz-character-fbx-extract 공용 설정·도우미
+# 작업 폴더(ROOT): 환경 변수 ZX_ROOT, 없으면 사용자 폴더의 ZZZ_CharacterFBX
 # 설정 파일: <ROOT>\config.json. 없으면 틀을 만들고 멈춘다. 경로를 채운 뒤 다시 돌린다 (또는 zx.py setup).
 import ctypes
 import json
@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-ROOT = Path(os.environ.get("ZX_ROOT", str(Path.home() / "ZZZ_GameExtract")))
+ROOT = Path(os.environ.get("ZX_ROOT", str(Path.home() / "ZZZ_CharacterFBX")))
 TEMPLATE = {
     "game_blocks": r"<게임 설치 폴더>\ZenlessZoneZero Game\ZenlessZoneZero_Data\StreamingAssets\Blocks",
     "tool_app": str(ROOT / "tools" / "AnimeStudioUltimate-1.8.1" / "app"),

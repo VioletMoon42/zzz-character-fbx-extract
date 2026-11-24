@@ -1,9 +1,9 @@
 ---
-name: zzz-game-extract
+name: zzz-character-fbx-extract
 description: 젠레스 존 제로(ZZZ) 캐릭터의 게임 뼈대·모델·몸 동작(공격, 회피, 궁극기, 대기, 걷기 등)을 내 PC에 설치된 게임 파일에서 FBX로 뽑고, ZZ-Model-Importer-Assets 덤프의 뼈 팔레트 번호를 실제 뼈 이름에 연결한다. 의상 이식·웨이트 작업 전에 캐릭터 데이터를 뽑아 둘 때, 근사 뼈대 대신 게임 뼈대로 웨이트를 시험할 때, 실제 게임 동작으로 클리핑을 확인할 때 쓴다. "게임 데이터 뽑아줘", "모션 데이터", "애니메이션 추출", "뼈대 추출", "진짜 뼈대", "실제 모션으로 시험", "AnimeStudio" 같은 말이 나오면 이 스킬을 쓴다.
 ---
 
-# ZZZ 게임 데이터 추출 (뼈대·모델·동작)
+# ZZZ Character FBX Extract (캐릭터 뼈대·모델·동작 → FBX)
 
 내 PC에 설치된 ZZZ 게임 파일에서 캐릭터의 **게임 뼈대 + 모델 + 몸 동작 전체**를 FBX로 뽑는다. 그다음 ZZMI 덤프의 **팔레트 번호 → 실제 뼈 이름** 표를 만든다.
 
@@ -15,11 +15,11 @@ description: 젠레스 존 제로(ZZZ) 캐릭터의 게임 뼈대·모델·몸 �
 
 ## 준비 (처음 한 번)
 `zx.py setup`이 게임·도구·Blender를 찾아 설정을 만들고 훅을 빌드한다. 수동으로 하면 다음과 같다.
-- 작업 폴더(`ZX_ROOT`, 기본값 `%USERPROFILE%\ZZZ_GameExtract`)에 AnimeStudioUltimate 1.8.1과 휴대용 .NET 10 런타임을 둔다.
+- 작업 폴더(`ZX_ROOT`, 기본값 `%USERPROFILE%\ZZZ_CharacterFBX`)에 AnimeStudioUltimate 1.8.1과 휴대용 .NET 10 런타임을 둔다.
 - `scripts\ExtractHook.cs`를 빌드해 `ExtractHook.dll`을 만든다.
 - 아무 스크립트나 한 번 돌리면 `config.json` 틀이 생긴다. `<...>` 부분을 채운다.
 
-사람이 직접 쓸 때는 `zzz-extract.bat`(메뉴) 또는 `scripts\zx.py setup|extract|check|dump|list|map`을 쓴다. 아래 단계는 그 안에서 부르는 개별 스크립트다.
+사람이 직접 쓸 때는 `zzz-character-fbx-extract.bat`(메뉴) 또는 `scripts\zx.py setup|extract|check|dump|list|map`을 쓴다. 아래 단계는 그 안에서 부르는 개별 스크립트다.
 
 스크립트는 모두 `python -X utf8 <스크립트>`로 돌린다(`-X utf8`이 없으면 한글이 깨진다). 각 스크립트는 `--help`로 인자를 보여 준다. 필요한 패키지: numpy, scipy(덤프 대조, `requirements.txt`).
 게임 없이 도는 단위 테스트: `python -m unittest discover -s tests`. 스크립트를 고친 뒤에는 이것부터 돌린다.

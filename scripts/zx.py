@@ -1,4 +1,4 @@
-# zzz-game-extract 한곳 실행기. 인자 없이 돌리면 메뉴가 나온다 (zzz-extract.bat 더블클릭).
+# zzz-character-fbx-extract 한곳 실행기. 인자 없이 돌리면 메뉴가 나온다 (zzz-character-fbx-extract.bat 더블클릭).
 #   python zx.py setup                  설정 만들기 (게임·Blender·도구 위치 찾기, 훅 빌드)
 #   python zx.py extract <이름> [옵션]   찾기 + 뽑기 (지도가 없거나 오래되면 먼저 만든다)
 #       옵션: --code <코드명>  --clips <동작 이름 앞부분 정규식, 예: "Idle_Loop|Evade">  --with-facial  --model-only
@@ -379,7 +379,7 @@ MENU = [("setup", "처음 설정 (한 번만)"), ("extract", "캐릭터 뽑기 (
 
 
 def menu(ap):
-    print("zzz-game-extract — 내 게임 파일에서 캐릭터 뼈대·모델·동작 뽑기 (개인 작업용, 결과물 배포 금지)\n")
+    print("ZZZ Character FBX Extract — 내 게임 파일에서 캐릭터 뼈대·모델·동작 뽑기 (개인 작업용, 결과물 배포 금지)\n")
     while True:
         for i, (_, t) in enumerate(MENU, 1):
             print(f"  {i}. {t}")
