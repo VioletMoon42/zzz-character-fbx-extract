@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+# never commit game data or extracted output
+*.blk
+*.fbx
+*.dll
+*.exe
+config.json
+characters/
+map/
+tools/
