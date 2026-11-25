@@ -217,13 +217,25 @@ def mixed_bind_poses(path):
                     again = True
     if again:
         replace, fix, canon, blend, minority = solve(pick)
-    return replace, fix, canon, blend
+    # 정점별로 맞춰야 하는 메시는 그 메시 전용 보조 뼈대로 정확히 맞출 수 있다: 그 메시가 쓰는 뼈를 모두 그 메시의 기준 자세로 둔 가져오기용 표
+    own = {}
+    for m in blend:
+        mine = {bone: next(t[2] for t in lst if t[1] == m and t[4] > 0)
+                for bone, lst in by_bone.items() if any(t[1] == m and t[4] > 0 for t in lst)}
+        rep2 = {}
+        for bone, lst in by_bone.items():
+            Lb = mine.get(bone, pick[bone])
+            for uid, _, L, el, _ in lst:
+                if key(L) != key(Lb):
+                    rep2[uid] = retarget(el, L, Lb)
+        own[m] = rep2
+    return replace, fix, canon, blend, own
 
 
 def import_fbx(path):
     """FBX를 가져온다. 메시마다 기준 자세가 엇갈리면 다수 메시 값으로 통일해 가져오고, 소수 메시는 정점을 옮겨 맞춘다."""
     try:
-        replace, fix, canon, blend = mixed_bind_poses(path)
+        replace, fix, canon, blend, own = mixed_bind_poses(path)
     except Exception as ex:   # 검사에 실패해도 가져오기는 평소대로
         print("WARN 바인드 포즈 검사 실패:", repr(ex))
         replace = {}
@@ -233,21 +245,28 @@ def import_fbx(path):
     import numpy as np
     from io_scene_fbx import import_fbx as imp
     from mathutils import Matrix
-    objs0 = set(bpy.data.objects)
     orig = imp.elem_find_first
+    made_actions = []
 
-    def patched(elem, id_search, default=None):
-        if id_search in (b"TransformLink", b"Transform") and getattr(elem, "id", None) == b"Deformer" \
-                and elem.props and elem.props[0] in replace:
-            return replace[elem.props[0]][id_search]
-        return orig(elem, id_search, default)
+    def import_with(rep):
+        """클러스터 기준 자세를 rep대로 바꿔 가져오고 새로 생긴 오브젝트를 돌려준다"""
+        before, acts_before = set(bpy.data.objects), set(bpy.data.actions)
 
-    imp.elem_find_first = patched
-    try:
-        bpy.ops.import_scene.fbx(filepath=str(path), global_scale=100.0)
-    finally:
-        imp.elem_find_first = orig
-    new = [o for o in bpy.data.objects if o not in objs0]
+        def patched(elem, id_search, default=None):
+            if id_search in (b"TransformLink", b"Transform") and getattr(elem, "id", None) == b"Deformer" \
+                    and elem.props and elem.props[0] in rep:
+                return rep[elem.props[0]][id_search]
+            return orig(elem, id_search, default)
+
+        imp.elem_find_first = patched
+        try:
+            bpy.ops.import_scene.fbx(filepath=str(path), global_scale=100.0)
+        finally:
+            imp.elem_find_first = orig
+        made_actions[:] = [x for x in bpy.data.actions if x not in acts_before]
+        return [o for o in bpy.data.objects if o not in before]
+
+    new = import_with(replace)
     arm_ = next(o for o in new if o.type == "ARMATURE")
     # FBX 공간 → Blender 월드 변환: 뼈 휴지 위치(이제 다수 메시 기준)와 FBX 값을 맞대어 구한다(축 변환·배율이 버전마다 달라도 맞게)
     # 크기 변환이 섞인 뼈는 Blender 뼈 위치가 FBX 값과 달라질 수 있어, 안 맞는 뼈는 빼 가며 다시 맞춘다
@@ -272,6 +291,50 @@ def import_fbx(path):
         ob.data.transform(w.inverted() @ conv @ G.inverted() @ conv.inverted() @ w, shape_keys=True)
     cn = np.array(conv)
     cni = np.linalg.inv(cn)
+    helpers, extra_actions = [], []
+    for mesh, rep2 in own.items():
+        ob = next((o for o in new if o.type == "MESH" and o.name == mesh), None)
+        if ob is None:
+            continue
+        try:
+            extra = import_with(rep2)
+        except Exception as ex:
+            print("WARN 보조 뼈대 가져오기 실패:", mesh, repr(ex))
+            continue
+        extra_actions += made_actions
+        arm2 = next((o for o in extra if o.type == "ARMATURE"), None)
+        for o in extra:   # 보조 뼈대만 남기고 함께 들어온 메시·빈 노드는 지운다
+            if o is not arm2:
+                bpy.data.objects.remove(o, do_unlink=True)
+        if arm2 is None:
+            continue
+        if arm2.animation_data:
+            arm2.animation_data_clear()
+        arm2.name = f"{arm_.name}_bind_{mesh}"
+        arm2.data.name = arm2.name
+        arm2.parent = arm_.parent
+        arm2.matrix_world = arm_.matrix_world
+        for pb in arm2.pose.bones:   # 본 뼈대의 같은 이름 뼈를 월드 공간 그대로 따라간다
+            if pb.name in arm_.pose.bones:
+                c = pb.constraints.new("COPY_TRANSFORMS")
+                c.target, c.subtarget = arm_, pb.name
+                c.target_space = c.owner_space = "WORLD"
+        for md in ob.modifiers:
+            if md.type == "ARMATURE" and md.object == arm_:
+                md.object = arm2
+        helpers.append(arm2)
+        blend.pop(mesh, None)
+    if helpers:
+        hc = bpy.data.collections.new("보조 뼈대 (기준 자세가 다른 메시용)")
+        bpy.context.scene.collection.children.link(hc)
+        for a2 in helpers:
+            for c in list(a2.users_collection):
+                c.objects.unlink(a2)
+            hc.objects.link(a2)
+        hc.hide_viewport = True
+        hc.hide_render = True
+    for x in extra_actions:   # 보조 가져오기에서 생긴 동작은 지운다(보조 뼈대는 본 뼈대를 따라가므로 필요 없음)
+        bpy.data.actions.remove(x)
     for mesh, (idx, wts, mats) in blend.items():
         ob = next((o for o in new if o.type == "MESH" and o.name == mesh), None)
         if ob is None or not idx:
@@ -299,7 +362,8 @@ def import_fbx(path):
             co = np.einsum("nij,nj->ni", X, co)[:, :3]
             coll.foreach_set("co", co.ravel())
         me.update()
-    print(f"BIND {Path(path).name}: 기준 자세 통일, 통째로 옮긴 메시 {', '.join(fix) or '-'}, 정점별로 맞춘 메시 {', '.join(blend) or '-'}")
+    print(f"BIND {Path(path).name}: 기준 자세 통일, 통째로 옮긴 메시 {', '.join(fix) or '-'}, "
+          f"보조 뼈대 {', '.join(a.name for a in helpers) or '-'}, 정점별로 맞춘 메시 {', '.join(blend) or '-'}")
 
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -450,7 +514,10 @@ note.write(
        if clips else "동작이 없는 모델 파일입니다.\n")
     + "공격·회피는 앞으로 나가는 동작이라 캐릭터가 제자리를 벗어납니다.\n"
     + ("앞머리 그림자용 보조 메시(*_HairShadow)는 '보조 메시' 컬렉션에 모아 꺼 두었습니다. FBX에는 그대로 들어 있습니다.\n"
-       if shadow else ""))
+       if shadow else "")
+    + ("이 캐릭터는 메시마다 뼈를 다른 기준 자세로 묶어 둔 부분이 있어, 그 메시는 '보조 뼈대' 컬렉션의 뼈대에 붙여 두었습니다.\n"
+       "보조 뼈대는 본 뼈대를 그대로 따라 움직이니(Copy Transforms) 동작은 본 뼈대에만 넣으면 됩니다.\n"
+       if "보조 뼈대 (기준 자세가 다른 메시용)" in bpy.data.collections else ""))
 
 # 텍스처: 같은 파일을 가리키는 중복 이미지를 하나로 합치고, .blend 옆 파일을 이름으로 가리킨다(폴더째 옮겨도 열림)
 first = {}
