@@ -11,8 +11,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from zx_common import (cfg, char_dir, copy_if_changed, game_version, has_path, hook_env, load_plan,  # noqa: E402
-                       make_blend, run_cli)
+from zx_common import (cfg, char_dir, copy_if_changed, game_version, has_path, hook_env, load_map,  # noqa: E402
+                       load_plan, make_blend, run_cli)
 
 NO_CLIPS = r"^ZX_NO_CLIP_MATCHES$"   # 모델만 뽑을 때: 어떤 동작 이름에도 안 맞는 정규식
 
@@ -99,6 +99,30 @@ def export(plan, c, lst, outname, clip_rx, blend=False, extras=()):
     return r
 
 
+def fbx_node_names(fbx):
+    """바이너리 FBX의 노드(Model) 이름들"""
+    return {m.decode("ascii") for m in re.findall(rb"([A-Za-z][\w.]*)\x00\x01Model", Path(fbx).read_bytes())}
+
+
+def find_meshes_in_hierarchy(plan, c):
+    """메시 이름이 코드명과 다를 때(니콜 = Nostradamus → NuoCha_*): 모델 계층만 한 번 뽑아
+    부품 이름을 읽고, 같은 이름의 메시를 지도에서 찾아 plan에 넣는다(plan.json도 고친다)."""
+    import shutil
+    import zx_find
+    probe = char_dir(plan["code"]) / "model_probe"
+    shutil.rmtree(probe, ignore_errors=True)
+    _, lst = gather_input(plan, True, c)
+    print("메시 이름이 코드명과 달라서 모델 계층에서 부품 이름을 읽습니다...")
+    export(plan, c, lst, probe.name, NO_CLIPS)
+    names = set().union(*(fbx_node_names(f) for f in probe.glob("*.fbx")))
+    shutil.rmtree(probe, ignore_errors=True)
+    zx_find.set_meshes(plan, zx_find.meshes_named(load_map(), names))
+    if plan["meshes"]:
+        print(f"메시 {len(plan['meshes'])}개 찾음 (예: {plan['meshes'][0]})")
+        (char_dir(plan["code"]) / "plan.json").write_text(json.dumps(plan, ensure_ascii=False, indent=1), encoding="utf-8")
+    return plan
+
+
 def main():
     ap = argparse.ArgumentParser(description="plan.json대로 모델·동작 FBX를 뽑는다")
     ap.add_argument("code", help="게임 속 코드명 (zx_find.py 결과)")
@@ -114,6 +138,8 @@ def main():
     gv = game_version()
     if plan.get("game_version") and gv and plan["game_version"] != gv:
         print(f"주의: plan은 게임 {plan['game_version']} 때 만든 것입니다 (지금 {gv}). 실패하면 지도와 plan을 다시 만드세요.")
+    if not plan.get("meshes"):
+        plan = find_meshes_in_hierarchy(plan, c)
     if not plan.get("meshes"):
         raise SystemExit(f"{a.code}: 이 모델의 메시를 지도에서 못 찾았습니다. 몸이 다른 모델 안에 든 NPC·변신 형태일 수 있습니다 "
                          "(예: SeedSr는 Seed 모델 안에 있음). 다른 후보 이름으로 해 보세요.")

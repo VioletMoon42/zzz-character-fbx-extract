@@ -40,6 +40,24 @@ def is_own_mesh(name, code, others, model=None):
     return not any(name.startswith(o + "_") or name == o for o in others)
 
 
+def meshes_named(rows, names):
+    """모델 계층의 부품 이름과 같은 이름의 메시 {이름: {파일}} (LOD 빼고).
+    메시 이름이 코드명과 다른 캐릭터용: 니콜은 코드명 Nostradamus인데 메시는 NuoCha_Body_1 등."""
+    meshes = collections.defaultdict(set)
+    for n, t, b in rows:
+        if t == "Mesh" and n in names and "_" in n and not re.search(r"_LOD\d+$", n):
+            meshes[n].add(b)
+    # 계층에는 뼈 이름(Weapon_01 등)도 있어 다른 캐릭터의 같은 이름 메시가 섞인다 → 가장 많은 앞부분(NuoCha_)만 남긴다
+    pre = collections.Counter(n.split("_")[0] for n in meshes).most_common(1)
+    return {n: b for n, b in meshes.items() if pre and n.split("_")[0] == pre[0][0]}
+
+
+def set_meshes(plan, meshes):
+    plan["meshes"] = sorted(meshes)
+    plan["mesh_blks"] = sorted({b for s in meshes.values() for b in s})
+    return plan
+
+
 def candidates(name, codes):
     part = sorted(c for c in codes if name.lower() in c.lower())
     close = difflib.get_close_matches(name, list(codes), n=8, cutoff=0.5)
@@ -81,14 +99,14 @@ def make_plan(rows, codes, code, name):
         if t == "AnimationClip" and clip_rx.match(n):
             clips[b].add(n)
     all_clips = {n for s in clips.values() for n in s}
-    return {
+    return set_meshes({
         "input_name": name, "code": code, "model_animator": model, "game_version": game_version(),
-        "model_blks": model_blks, "mesh_blks": sorted({b for s in meshes.values() for b in s}), "meshes": sorted(meshes),
+        "model_blks": model_blks,
         "clip_blks": sorted(clips), "body_clip_count": sum("Facial" not in n for n in all_clips),
         "facial_clip_count": sum("Facial" in n for n in all_clips),
         "body_clips": sorted(n for n in all_clips if "Facial" not in n),
         "other_models_same_code_prefix": sorted(others),
-    }
+    }, meshes)
 
 
 def find(name, code=None):

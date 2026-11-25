@@ -59,6 +59,15 @@ class FindTest(unittest.TestCase):
         self.assertFalse(zx_find.is_own_mesh(f"SeparateMesh_{m}_Ellen_Body_1_LOD1", "Ellen", [], m))
         self.assertFalse(zx_find.is_own_mesh("SeparateMesh_Avatar_Female_Size02_EllenOnCampus_Model_Ellen_Face", "Ellen", [], m))
 
+    def test_meshes_named_from_hierarchy(self):
+        # 니콜: 코드명 Nostradamus, 메시는 NuoCha_*. 계층의 뼈 이름(Head, Weapon_01)과 같은 이름의 남의 메시는 빼야 한다
+        rows = [("NuoCha_Body_1", "Mesh", "a.blk"), ("NuoCha_Face", "Mesh", "b.blk"), ("NuoCha_Face_LOD1", "Mesh", "c.blk"),
+                ("NuoCha_CunningCutie_Body_1", "Mesh", "d.blk"), ("Head", "Mesh", "x.blk"), ("Weapon_01", "Mesh", "y.blk")]
+        names = {"NuoCha_Body_1", "NuoCha_Face", "Head", "Weapon_01", "Spine"}
+        plan = zx_find.set_meshes({}, zx_find.meshes_named(rows, names))
+        self.assertEqual(plan["meshes"], ["NuoCha_Body_1", "NuoCha_Face"])
+        self.assertEqual(plan["mesh_blks"], ["a.blk", "b.blk"])
+
     def test_plan(self):
         plan = zx_find.make_plan(ROWS, self.codes, "Pheony", "Phoenix")
         self.assertEqual(plan["model_blks"], ["a.blk"])           # Avatar가 같이 든 파일만
