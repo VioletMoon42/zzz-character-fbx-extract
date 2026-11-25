@@ -114,8 +114,14 @@ def main():
     gv = game_version()
     if plan.get("game_version") and gv and plan["game_version"] != gv:
         print(f"주의: plan은 게임 {plan['game_version']} 때 만든 것입니다 (지금 {gv}). 실패하면 지도와 plan을 다시 만드세요.")
+    if not plan.get("meshes"):
+        raise SystemExit(f"{a.code}: 이 모델의 메시를 지도에서 못 찾았습니다. 몸이 다른 모델 안에 든 NPC·변신 형태일 수 있습니다 "
+                         "(예: SeedSr는 Seed 모델 안에 있음). 다른 후보 이름으로 해 보세요.")
     clip_rx = clip_regex(plan, a.clips, a.with_facial)
-    re.compile(clip_rx)   # 잘못된 정규식이면 여기서 바로 알린다
+    rx = re.compile(clip_rx)   # 잘못된 정규식이면 여기서 바로 알린다
+    if a.clips and not a.model_only and plan.get("body_clips") and not any(rx.match(n) for n in plan["body_clips"]):
+        names = [n.split("_Ani_", 1)[1] for n in plan["body_clips"]]
+        raise SystemExit(f"--clips '{a.clips}'에 맞는 동작이 없습니다. 이 캐릭터의 동작 예: {', '.join(names[:8])} …")
     weapons = []
     if not a.model_only and not a.no_weapon and weapon_models(plan):
         print(f"무기({', '.join(weapon_models(plan))})를 같은 동작으로 함께 뽑습니다 (빼려면 --no-weapon)")

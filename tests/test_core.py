@@ -53,6 +53,11 @@ class FindTest(unittest.TestCase):
         self.assertFalse(zx_find.is_own_mesh("Pheony_Weapon_Sword", "Pheony", others))
         self.assertFalse(zx_find.is_own_mesh("Pheony_Body_LOD1", "Pheony", others))
         self.assertFalse(zx_find.is_own_mesh("PheonyX_Body", "Pheony", others))
+        # 초기 캐릭터: 몸 메시가 모델 이름으로 시작 (다른 모습 EllenOnCampus는 빼고)
+        m = "Avatar_Female_Size02_Ellen_Model"
+        self.assertTrue(zx_find.is_own_mesh(f"SeparateMesh_{m}_Ellen_Body_1", "Ellen", [], m))
+        self.assertFalse(zx_find.is_own_mesh(f"SeparateMesh_{m}_Ellen_Body_1_LOD1", "Ellen", [], m))
+        self.assertFalse(zx_find.is_own_mesh("SeparateMesh_Avatar_Female_Size02_EllenOnCampus_Model_Ellen_Face", "Ellen", [], m))
 
     def test_plan(self):
         plan = zx_find.make_plan(ROWS, self.codes, "Pheony", "Phoenix")

@@ -28,9 +28,14 @@ def model_codes(rows):
     return codes
 
 
-def is_own_mesh(name, code, others):
-    """메시 이름이 이 코드명의 것인지. 같은 접두어의 다른 모델(Pheony_Youth, Pheony_Weapon 등)과 LOD는 뺀다."""
-    if not name.startswith(code + "_") or re.search(r"_LOD\d+$", name):
+def is_own_mesh(name, code, others, model=None):
+    """메시 이름이 이 코드명의 것인지. 같은 접두어의 다른 모델(Pheony_Youth, Pheony_Weapon 등)과 LOD는 뺀다.
+    초기 캐릭터(Ellen, Lycaon 등)는 몸 메시가 'SeparateMesh_<모델 이름>_Ellen_Body_1'처럼 모델 이름으로 시작한다."""
+    if re.search(r"_LOD\d+$", name):
+        return False
+    if model and name.startswith(f"SeparateMesh_{model}_"):
+        return True
+    if not name.startswith(code + "_"):
         return False
     return not any(name.startswith(o + "_") or name == o for o in others)
 
@@ -68,7 +73,7 @@ def make_plan(rows, codes, code, name):
     others = [c for c in codes if c != code and c.startswith(code + "_")]
     meshes = collections.defaultdict(set)
     for n, t, b in rows:
-        if t == "Mesh" and is_own_mesh(n, code, others):
+        if t == "Mesh" and is_own_mesh(n, code, others, model):
             meshes[n].add(b)
     clip_rx = re.compile(rf"^Avatar_(?:Female|Male)_Size\d+_{re.escape(code)}_Ani_")
     clips = collections.defaultdict(set)
